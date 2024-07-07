@@ -37,7 +37,6 @@ param WorskspaceName string = 'LA-${Seed}'
 param publicNetworkAccess string = 'Enabled'
 
 param KVname string = 'KV-${Seed}'
-param SSHPublickey string
 
 
 // Hub Resource Group Deploy
