@@ -1,0 +1,253 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.28.1.47646",
+      "templateHash": "11587005212087095551"
+    }
+  },
+  "parameters": {
+    "WorkspaceName": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "Seed": {
+      "type": "string"
+    },
+    "VMlist": {
+      "type": "array"
+    },
+    "AKSlist": {
+      "type": "array"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2022-06-01",
+      "name": "[format('DCR-VM-{0}', parameters('Seed'))]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "dataSources": {
+          "performanceCounters": [
+            {
+              "name": "VMInsightsPerfCounters",
+              "streams": [
+                "Microsoft-InsightsMetrics"
+              ],
+              "samplingFrequencyInSeconds": 60,
+              "counterSpecifiers": [
+                "\\VmInsights\\DetailedMetrics"
+              ]
+            }
+          ],
+          "extensions": [
+            {
+              "name": "DependencyAgentDataSource",
+              "streams": [
+                "Microsoft-ServiceMap"
+              ],
+              "extensionName": "DependencyAgent",
+              "extensionSettings": {}
+            }
+          ]
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('WorkspaceName'))]",
+              "name": "[parameters('WorkspaceName')]"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Microsoft-InsightsMetrics"
+            ],
+            "destinations": [
+              "[parameters('WorkspaceName')]"
+            ]
+          },
+          {
+            "streams": [
+              "Microsoft-ServiceMap"
+            ],
+            "destinations": [
+              "[parameters('WorkspaceName')]"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2022-06-01",
+      "name": "[format('DCR-AKS-{0}', parameters('Seed'))]",
+      "location": "[parameters('location')]",
+      "kind": "Linux",
+      "properties": {
+        "dataSources": {
+          "syslog": [],
+          "extensions": [
+            {
+              "streams": [
+                "Microsoft-ContainerInsights-Group-Default"
+              ],
+              "extensionName": "ContainerInsights",
+              "extensionSettings": {
+                "dataCollectionSettings": {
+                  "interval": "1m",
+                  "namespaceFilteringMode": "Off",
+                  "enableContainerLogV2": true
+                }
+              },
+              "name": "ContainerInsightsExtension"
+            }
+          ]
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('WorkspaceName'))]",
+              "name": "ciworkspace"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [
+              "Microsoft-ContainerInsights-Group-Default"
+            ],
+            "destinations": [
+              "ciworkspace"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "copy": {
+        "name": "DCR_VM_Association",
+        "count": "[length(parameters('VMlist'))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('DCR-{0}-{1}', parameters('VMlist')[copyIndex()], parameters('Seed'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "VMName": {
+            "value": "[parameters('VMlist')[copyIndex()]]"
+          },
+          "dataCollectionRuleId": {
+            "value": "[resourceId('Microsoft.Insights/dataCollectionRules', format('DCR-VM-{0}', parameters('Seed')))]"
+          },
+          "Seed": {
+            "value": "[parameters('Seed')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.28.1.47646",
+              "templateHash": "15293687788540988891"
+            }
+          },
+          "parameters": {
+            "VMName": {
+              "type": "string"
+            },
+            "dataCollectionRuleId": {
+              "type": "string"
+            },
+            "Seed": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+              "apiVersion": "2022-06-01",
+              "scope": "[format('Microsoft.HybridCompute/machines/{0}', parameters('VMName'))]",
+              "name": "[format('DCRA-VM-{0}', parameters('Seed'))]",
+              "properties": {
+                "dataCollectionRuleId": "[parameters('dataCollectionRuleId')]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('DCR-VM-{0}', parameters('Seed')))]"
+      ]
+    },
+    {
+      "copy": {
+        "name": "DCR_AKS_Association",
+        "count": "[length(parameters('AKSlist'))]"
+      },
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "[format('DCRA-{0}-{1}', parameters('AKSlist')[copyIndex()], parameters('Seed'))]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "AKSname": {
+            "value": "[parameters('AKSlist')[copyIndex()]]"
+          },
+          "dataCollectionRuleId": {
+            "value": "[resourceId('Microsoft.Insights/dataCollectionRules', format('DCR-AKS-{0}', parameters('Seed')))]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.28.1.47646",
+              "templateHash": "5263166930869251723"
+            }
+          },
+          "parameters": {
+            "AKSname": {
+              "type": "string"
+            },
+            "dataCollectionRuleId": {
+              "type": "string"
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/dataCollectionRuleAssociations",
+              "apiVersion": "2022-06-01",
+              "scope": "[format('Microsoft.ContainerService/managedClusters/{0}', parameters('AKSname'))]",
+              "name": "ContainerInsightsExtension",
+              "properties": {
+                "description": "Association of data collection rule. Deleting this association will break the data collection for this AKS Cluster.",
+                "dataCollectionRuleId": "[parameters('dataCollectionRuleId')]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('DCR-AKS-{0}', parameters('Seed')))]"
+      ]
+    }
+  ]
+}

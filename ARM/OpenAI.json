@@ -1,0 +1,142 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.28.1.47646",
+      "templateHash": "10159699487329047773"
+    }
+  },
+  "parameters": {
+    "OpenAIName": {
+      "type": "string",
+      "defaultValue": "[format('OAISrv-{0}-{1}', parameters('Seed'), substring(uniqueString(resourceGroup().id, newGuid()), 0, 3))]",
+      "metadata": {
+        "description": "That name is the name of our application. It has to be unique.Type a name followed by your resource group name. (<name>-<resourceGroupName>)"
+      }
+    },
+    "OpenAIdeploymentName": {
+      "type": "string",
+      "defaultValue": "[format('OAIDeploy-{0}-{1}', parameters('Seed'), substring(uniqueString(resourceGroup().id, newGuid()), 0, 3))]"
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "swedencentral",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "ServiceName": {
+      "type": "string",
+      "defaultValue": "Standard"
+    },
+    "Capacity": {
+      "type": "int",
+      "defaultValue": 50
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "S0",
+      "allowedValues": [
+        "S0"
+      ]
+    },
+    "format": {
+      "type": "string",
+      "defaultValue": "OpenAI"
+    },
+    "ModelName": {
+      "type": "string",
+      "defaultValue": "gpt-35-turbo"
+    },
+    "version": {
+      "type": "string",
+      "defaultValue": "0613"
+    },
+    "Seed": {
+      "type": "string"
+    },
+    "KVname": {
+      "type": "string"
+    },
+    "SPsecret": {
+      "type": "securestring"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.CognitiveServices/accounts",
+      "apiVersion": "2023-10-01-preview",
+      "name": "[format('OpenAI-{0}', uniqueString(resourceGroup().id))]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('sku')]"
+      },
+      "kind": "OpenAI",
+      "properties": {
+        "customSubDomainName": "[parameters('OpenAIName')]",
+        "publicNetworkAccess": "Enabled",
+        "networkAcls": {
+          "defaultAction": "Allow",
+          "ipRules": [],
+          "virtualNetworkRules": []
+        }
+      }
+    },
+    {
+      "type": "Microsoft.CognitiveServices/accounts/deployments",
+      "apiVersion": "2023-10-01-preview",
+      "name": "[format('{0}/{1}', format('OpenAI-{0}', uniqueString(resourceGroup().id)), parameters('OpenAIdeploymentName'))]",
+      "sku": {
+        "name": "[parameters('ServiceName')]",
+        "capacity": "[parameters('Capacity')]"
+      },
+      "properties": {
+        "model": {
+          "format": "[parameters('format')]",
+          "name": "[parameters('ModelName')]",
+          "version": "[parameters('version')]"
+        },
+        "versionUpgradeOption": "OnceNewDefaultVersionAvailable",
+        "raiPolicyName": "Microsoft.Default"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('OpenAI-{0}', uniqueString(resourceGroup().id)))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[format('{0}/{1}', parameters('KVname'), 'SP-Secret')]",
+      "properties": {
+        "value": "[parameters('SPsecret')]"
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[format('{0}/{1}', parameters('KVname'), 'API-Key')]",
+      "properties": {
+        "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', format('OpenAI-{0}', uniqueString(resourceGroup().id))), '2023-10-01-preview').key1]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.CognitiveServices/accounts', format('OpenAI-{0}', uniqueString(resourceGroup().id)))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "OpenAIserviceName": {
+      "type": "string",
+      "value": "[format('OpenAI-{0}', uniqueString(resourceGroup().id))]"
+    },
+    "OpenAIdeploymentName": {
+      "type": "string",
+      "value": "[parameters('OpenAIdeploymentName')]"
+    },
+    "OpenAIName": {
+      "type": "string",
+      "value": "[parameters('OpenAIName')]"
+    }
+  }
+}
