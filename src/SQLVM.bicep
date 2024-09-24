@@ -2,7 +2,7 @@
 param vmName string = 'mySqlVM'
 
 @description('The virtual machine size.')
-param vmSize string = 'Standard_B2s'
+param vmSize string = 'Standard_B4s_v2'
 
 @description('Specify the name of an existing VNet in the same resource group')
 param VirtualNetworkName string
@@ -166,6 +166,20 @@ resource networkInterface 'Microsoft.Network/networkInterfaces@2022-01-01' = {
   }
 }
 
+resource DataDisk 'Microsoft.Compute/disks@2024-03-02' = [for j in range(0, sqlDataDisksCount + sqlLogDisksCount): {
+  name: '${vmName}-datadisk-${j}'
+  location: location
+  sku: {
+    name: 'Premium_LRS'
+  }
+  properties: {
+    creationData: {
+      createOption: 'Empty'
+    }
+    diskSizeGB: 1023
+  }
+}]
+
 resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' = {
   name: vmName
   location: location
@@ -174,14 +188,13 @@ resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' = {
       vmSize: vmSize
     }
     storageProfile: {
-      dataDisks: [for j in range(0, length(range(0, (sqlDataDisksCount + sqlLogDisksCount)))): {
-        lun: range(0, (sqlDataDisksCount + sqlLogDisksCount))[j]
-        createOption: dataDisks.createOption
-        caching: ((range(0, (sqlDataDisksCount + sqlLogDisksCount))[j] >= sqlDataDisksCount) ? 'None' : dataDisks.caching)
-        writeAcceleratorEnabled: dataDisks.writeAcceleratorEnabled
-        diskSizeGB: dataDisks.diskSizeGB
+     dataDisks: [for j in range(0, sqlDataDisksCount + sqlLogDisksCount): {
+        lun: DataDisk[j].properties.creationData.createOption.lun
+        createOption: 'Empty'
+        caching: ((range(0, (sqlDataDisksCount + sqlLogDisksCount))[j] >= sqlDataDisksCount) ? 'None' : 'ReadOnly')
+        diskSizeGB: DataDisk[j].properties.diskSizeGB
         managedDisk: {
-          storageAccountType: dataDisks.storageAccountType
+          storageAccountType: DataDisk[j].id
         }
       }]
       osDisk: {
@@ -216,7 +229,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2022-03-01' = {
     securityProfile: ((securityType == 'TrustedLaunch') ? securityProfileJson : null)
   }
 }
-
+/*
 resource vmName_extension 'Microsoft.Compute/virtualMachines/extensions@2022-03-01' = if ((securityType == 'TrustedLaunch') && ((securityProfileJson.uefiSettings.secureBootEnabled == true) && (securityProfileJson.uefiSettings.vTpmEnabled == true))) {
   parent: vm
   name: extensionName
@@ -267,6 +280,6 @@ resource Microsoft_SqlVirtualMachine_sqlVirtualMachines_virtualMachine 'Microsof
       }
     }
   }
-}
+}*/
 
 output hostname string = vm.properties.osProfile.computerName

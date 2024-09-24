@@ -31,13 +31,13 @@ param WinVMname string = 'WinVM-${Seed}'
 param LinVMname string = 'LinVM-${Seed}'
 param CustomDnsServer string =''
 param rnd string = substring(uniqueString(utcNow()),0,5)
-param vmsize string = 'Standard_B2ms'
+param vmsize string = 'Standard_B4s_v2'
 
 param WorskspaceName string = 'LA-${Seed}'
 param publicNetworkAccess string = 'Enabled'
 
 param KVname string = 'KV-${Seed}'
-param SSHPublickey string
+//param SSHPublickey string
 
 
 // Hub Resource Group Deploy
@@ -84,7 +84,7 @@ module SqlVM 'src/SQLVM.bicep' = [for i in range(1, WinNum): {
   name: 'SQL-${Seed}-${rnd}-${i}'
   scope: HubRG
   params: {
-    vmName: 'DC-${i}'
+    vmName: 'SQL-${i}'
     adminUsername: 'gdradmin'
     adminPassword: adminPassword   
     VirtualNetworkName: HubVnetName
@@ -95,7 +95,7 @@ module SqlVM 'src/SQLVM.bicep' = [for i in range(1, WinNum): {
     sqlSku: 'standard-gen2'
   }
 }]
-
+/*
 module AKS 'src/AKS.bicep' = {
   dependsOn: [LAW]
   name: 'AKS-${Seed}'
@@ -107,7 +107,7 @@ module AKS 'src/AKS.bicep' = {
     Seed: Seed
     SSHPublicKey: SSHPublickey
   }
-}
+}*/
 
 output SqlVMsName array = [for i in range(0,WinNum):{
   name: SqlVM[i].outputs.hostname
@@ -115,5 +115,5 @@ output SqlVMsName array = [for i in range(0,WinNum):{
 output HubVnetName string = HubVnetName
 output PEsubnetName string = PEsubnetName
 output KvName string =  KVname
-output AKSName string = AKS.name
+//output AKSName string = AKS.name
 output laWname string = WorskspaceName

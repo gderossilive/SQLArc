@@ -10,10 +10,10 @@
 # import environment variables from .env file
 source .env
 
-#az login --tenant $MyTenantId --use-device-code
+az login --tenant $MyTenantId --use-device-code
 #az account set --subscription $MySubscriptionId # MCAPS tenant
-az login --scope https://management.core.windows.net//.default --tenant $ENV:MyTenantId
-az account set --subscription $ENV:MySubscriptionId # MCAPS tenant
+#az login --scope https://management.core.windows.net//.default --tenant $MyTenantId
+az account set --subscription $MySubscriptionId # MCAPS tenant
 
 # Seed is a random string used to create unique names for the resources
 Seed=$(printf -v s '%s' {a..z} ; echo ${s:$((RANDOM % ${#s})):5};)
@@ -24,19 +24,18 @@ adminPassword=$(printf -v s '%s' {a..z} {A..Z} {0..9}; echo ${s:$((RANDOM % ${#s
 az group create --name "$Seed-Demo" --location "$location"
 
 # Create the SSH key for the AKS Cluster
-SSHPublickeyTemp=$(az sshkey create --name "SSHKey-$Seed" --resource-group "$Seed-Demo" --query "publicKey" -o tsv)
-SSHPublickey=${SSHPublickeyTemp/ generated-by-azure/}
+#SSHPublickeyTemp=$(az sshkey create --name "SSHKey-$Seed" --resource-group "$Seed-Demo" --query "publicKey" -o tsv)
+#SSHPublickey=${SSHPublickeyTemp/ generated-by-azure/}
 
 # Create the hub&spoke infrastructure
 az deployment sub create \
      --name "CoreDeploy-$Seed" \
      --location $location \
-     --template-uri 'https://raw.githubusercontent.com/gderossilive/AIOps/main/ARM/Main.json' \
+     --template-file './Main.bicep' \
      --parameters \
           'https://raw.githubusercontent.com/gderossilive/AIOps/main/Parameters.json' \
           location=$location \
           Seed=$Seed \
           MyObjectId=$MyObecjectId \
           adminPassword=$adminPassword \
-          SSHPublickey="$SSHPublickey" \
           WinNum=1 
