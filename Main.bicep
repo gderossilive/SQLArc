@@ -79,43 +79,20 @@ module HubDeploy 'src/HubDeploy.bicep' = {
   }
 }
  
-module WindowsVM 'src/AzureVM.bicep' = [for i in range(1, WinNum): {
+module SqlVM 'src/SQLVM.bicep' = [for i in range(1, WinNum): {
   dependsOn: [HubDeploy]
-  name: 'WindowsVM-${Seed}-${rnd}-${i}'
+  name: 'SQL-${Seed}-${rnd}-${i}'
   scope: HubRG
   params: {
     vmName: 'DC-${i}'
+    adminUsername: 'gdradmin'
     adminPassword: adminPassword   
-    virtualNetworkName: HubVnetName
-    subnetName: DMZsubnetName
+    VirtualNetworkName: HubVnetName
+    SubnetName: DMZsubnetName
     location: location
-    Command: WinCommand
-    CustomDnsServer: CustomDnsServer
     vmSize: vmsize
-    Publisher: 'MicrosoftWindowsServer'
-    Offer: 'WindowsServer'
-    Sku: '2022-Datacenter'
-    Version: 'latest'
-  }
-}]
-
-module LinuxVM 'src/AzureVM.bicep' = [for i in range(1, LinNum): {
-  dependsOn: [HubDeploy]
-  name: 'LinuxVM-${Seed}-${rnd}-${i}'
-  scope: HubRG
-  params: {
-    vmName: '${LinVMname}-${i}'
-    adminPassword: adminPassword
-    virtualNetworkName: HubVnetName
-    subnetName: DMZsubnetName
-    location: location
-    Command: LinCommand
-    CustomDnsServer: CustomDnsServer
-    vmSize: vmsize
-    Publisher: 'Canonical'
-    Offer: 'UbuntuServer'
-    Sku: '18.04-LTS'
-    Version: 'latest'
+    Offer:  'sql2019-ws2019'
+    sqlSku: 'standard-gen2'
   }
 }]
 
@@ -132,13 +109,9 @@ module AKS 'src/AKS.bicep' = {
   }
 }
 
-output WinVMsName array = [for i in range(0,WinNum):{
-  name: WindowsVM[i].outputs.hostname
+output SqlVMsName array = [for i in range(0,WinNum):{
+  name: SqlVM[i].outputs.hostname
 }]
-output LinVMsName array = [for i in range(0,LinNum):{
-  name: LinuxVM[i].outputs.hostname
-}]
-
 output HubVnetName string = HubVnetName
 output PEsubnetName string = PEsubnetName
 output KvName string =  KVname
